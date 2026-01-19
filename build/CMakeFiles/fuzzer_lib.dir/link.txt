@@ -1,0 +1,2 @@
+/bin/ar qc libfuzzer_lib.a CMakeFiles/fuzzer_lib.dir/src/fuzzer.cpp.o CMakeFiles/fuzzer_lib.dir/src/protocol.cpp.o
+/bin/ranlib libfuzzer_lib.a

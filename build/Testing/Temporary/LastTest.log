@@ -1,0 +1,114 @@
+Start testing: Mar 12 09:12 UTC
+----------------------------------------------------------
+1/3 Testing: FuzzerTests
+1/3 Test: FuzzerTests
+Command: "/tmp/binary-fuzz-engine_1773305854/build/test_fuzzer"
+Directory: /tmp/binary-fuzz-engine_1773305854/build
+"FuzzerTests" start time: Mar 12 09:12 UTC
+Output:
+----------------------------------------------------------
+========================================
+  Binary Fuzz Engine Test Suite
+========================================
+
+Running test_fuzzer_creation... PASSED
+Running test_fuzzer_seed_reproducibility... PASSED
+Running test_fuzzer_random_generation... PASSED
+Running test_fuzzer_mutation... PASSED
+Running test_fuzzer_seed_input... PASSED
+Running test_fuzzer_stats... PASSED
+Running test_fuzzer_size_limits... PASSED
+Running test_protocol_spec_creation... PASSED
+Running test_protocol_mutator_creation... PASSED
+Running test_protocol_packet_generation... PASSED
+Running test_protocol_packet_mutation... PASSED
+Running test_protocol_crc16... PASSED
+Running test_protocol_crc32... PASSED
+Running test_protocol_fuzzer... PASSED
+Running test_protocol_field_parsing... PASSED
+Running test_protocol_checksum_update... PASSED
+Running test_fuzzer_callback_execution... PASSED
+Running test_fuzzer_corpus_management... PASSED
+Running test_mutation_strategies_variety... PASSED
+Running test_random_data_generation... PASSED
+
+========================================
+  Test Results
+========================================
+  Total:  20
+  Passed: 20
+  Failed: 0
+========================================
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"FuzzerTests" end time: Mar 12 09:12 UTC
+"FuzzerTests" time elapsed: 00:00:00
+----------------------------------------------------------
+
+2/3 Testing: RawFuzzTest
+2/3 Test: RawFuzzTest
+Command: "/tmp/binary-fuzz-engine_1773305854/build/binary-fuzz-engine" "-m" "raw" "-i" "100" "-s" "42"
+Directory: /tmp/binary-fuzz-engine_1773305854/build
+"RawFuzzTest" start time: Mar 12 09:12 UTC
+Output:
+----------------------------------------------------------
+========================================
+     Binary Fuzz Engine v1.0.0
+     Low-level Protocol Fuzzer
+========================================
+
+Starting raw fuzz mode...
+Iterations: 100
+Seed: 42
+Max input size: 65536
+
+
+Fuzzing complete!
+  Total iterations: 100
+  Total mutations: 100
+  Crashes found: 0
+  Hangs found: 0
+  Interesting inputs: 0
+  Unique paths: 100
+  Final corpus size: 52
+  Exec/s: 100
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"RawFuzzTest" end time: Mar 12 09:12 UTC
+"RawFuzzTest" time elapsed: 00:00:00
+----------------------------------------------------------
+
+3/3 Testing: ProtocolFuzzTest
+3/3 Test: ProtocolFuzzTest
+Command: "/tmp/binary-fuzz-engine_1773305854/build/binary-fuzz-engine" "-m" "protocol" "-i" "100" "-s" "42"
+Directory: /tmp/binary-fuzz-engine_1773305854/build
+"ProtocolFuzzTest" start time: Mar 12 09:12 UTC
+Output:
+----------------------------------------------------------
+========================================
+     Binary Fuzz Engine v1.0.0
+     Low-level Protocol Fuzzer
+========================================
+
+Starting protocol fuzz mode...
+Protocol: GenericBinaryProtocol
+Fields: 5
+Iterations: 100
+
+
+Protocol fuzzing complete!
+  Total iterations: 100
+  Crashes found: 0
+<end of output>
+Test time =   0.01 sec
+----------------------------------------------------------
+Test Passed.
+"ProtocolFuzzTest" end time: Mar 12 09:12 UTC
+"ProtocolFuzzTest" time elapsed: 00:00:00
+----------------------------------------------------------
+
+End testing: Mar 12 09:12 UTC
