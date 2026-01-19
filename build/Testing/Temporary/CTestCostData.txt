@@ -1,4 +1,5 @@
-FuzzerTests 1 0.00597947
-RawFuzzTest 5 0.00214556
-ProtocolFuzzTest 5 0.00156345
+FuzzerTests 1 0
+RawFuzzTest 6 0.00782038
+ProtocolFuzzTest 6 0.00150196
 ---
+FuzzerTests

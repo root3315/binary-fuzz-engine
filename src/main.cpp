@@ -247,22 +247,23 @@ void saveCrash(const std::string& output_dir, const fuzz::FuzzInput& input,
 
 void runRawFuzzMode(const Config& config) {
     fuzz::Fuzzer fuzzer(config.seed);
-    
+
     fuzzer.setMaxInputSize(config.max_input_size);
     fuzzer.setMinInputSize(config.min_input_size);
     fuzzer.setMutationRate(config.mutation_rate);
     fuzzer.setVerbose(config.verbose);
-    
+    fuzzer.setExecutionTimeout(config.timeout_ms);
+
     if (!config.seed_file.empty()) {
         fuzzer.addSeedInputFromFile(config.seed_file);
     }
-    
+
     if (!config.corpus_dir.empty()) {
         fuzzer.loadCorpus(config.corpus_dir);
     }
-    
-    fuzzer.setExecuteCallback([](const std::vector<uint8_t>& data) -> bool {
-        return executeWithTimeout(data, 1000);
+
+    fuzzer.setExecuteCallback([&config](const std::vector<uint8_t>& data) -> bool {
+        return executeWithTimeout(data, config.timeout_ms);
     });
     
     fuzzer.setCrashCallback([&config](const fuzz::FuzzInput& input, const std::string& id) {
@@ -320,33 +321,33 @@ void runProtocolFuzzMode(const Config& config) {
         std::cout << "Seed packet " << i << " loaded" << std::endl;
     }
     
-    fuzzer.setExecuteCallback([](const std::vector<uint8_t>& data) -> bool {
-        return executeWithTimeout(data, 1000);
+    fuzzer.setExecuteCallback([&config](const std::vector<uint8_t>& data) -> bool {
+        return executeWithTimeout(data, config.timeout_ms);
     });
-    
+
     fuzzer.setCrashCallback([&config](const fuzz::FuzzInput& input, const std::string& id) {
         g_crash_detected = true;
         saveCrash(config.output_dir, input, "proto_crash_" + id);
         std::cout << "\n[CRASH] Protocol crash found!" << std::endl;
     });
-    
+
     std::cout << "Starting protocol fuzz mode..." << std::endl;
     std::cout << "Protocol: " << spec.name << std::endl;
     std::cout << "Fields: " << spec.fields.size() << std::endl;
     std::cout << "Iterations: " << config.iterations << std::endl;
     std::cout << std::endl;
-    
+
     size_t completed = 0;
     while (g_running && completed < config.iterations) {
         std::vector<uint8_t> input = proto_fuzzer.generateFuzzInput();
-        
+
         if (executeWithTimeout(input, config.timeout_ms)) {
             fuzz::FuzzInput fuzz_input(input);
             fuzzer.mutateInput(fuzz_input);
         }
-        
+
         completed++;
-        
+
         if (config.verbose && completed % 5000 == 0) {
             std::cout << "Progress: " << completed << "/" << config.iterations << std::endl;
         }

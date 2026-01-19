@@ -9,6 +9,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include "timeout_executor.h"
 
 namespace fuzz {
 
@@ -100,6 +101,9 @@ public:
     void setVerbose(bool verbose);
     bool isVerbose() const;
 
+    void setExecutionTimeout(int timeout_ms);
+    int getExecutionTimeout() const;
+
 private:
     struct MutationStrategy {
         MutationType type;
@@ -133,8 +137,11 @@ private:
     CrashCallback crash_callback_;
     HangCallback hang_callback_;
     InterestingCallback interesting_callback_;
-    
+
     std::unordered_map<std::string, bool> seen_hashes_;
+
+    TimeoutExecutor executor_;
+    int execution_timeout_ms_;
 };
 
 } // namespace fuzz

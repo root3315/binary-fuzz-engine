@@ -302,6 +302,30 @@ src/protocol.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/fuzzer_lib.dir/build.make CMakeFiles/fuzzer_lib.dir/src/protocol.cpp.s
 .PHONY : src/protocol.cpp.s
 
+src/timeout_executor.o: src/timeout_executor.cpp.o
+.PHONY : src/timeout_executor.o
+
+# target to build an object file
+src/timeout_executor.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fuzzer_lib.dir/build.make CMakeFiles/fuzzer_lib.dir/src/timeout_executor.cpp.o
+.PHONY : src/timeout_executor.cpp.o
+
+src/timeout_executor.i: src/timeout_executor.cpp.i
+.PHONY : src/timeout_executor.i
+
+# target to preprocess a source file
+src/timeout_executor.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fuzzer_lib.dir/build.make CMakeFiles/fuzzer_lib.dir/src/timeout_executor.cpp.i
+.PHONY : src/timeout_executor.cpp.i
+
+src/timeout_executor.s: src/timeout_executor.cpp.s
+.PHONY : src/timeout_executor.s
+
+# target to generate assembly for a file
+src/timeout_executor.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fuzzer_lib.dir/build.make CMakeFiles/fuzzer_lib.dir/src/timeout_executor.cpp.s
+.PHONY : src/timeout_executor.cpp.s
+
 tests/test_fuzzer.o: tests/test_fuzzer.cpp.o
 .PHONY : tests/test_fuzzer.o
 
@@ -353,6 +377,9 @@ help:
 	@echo "... src/protocol.o"
 	@echo "... src/protocol.i"
 	@echo "... src/protocol.s"
+	@echo "... src/timeout_executor.o"
+	@echo "... src/timeout_executor.i"
+	@echo "... src/timeout_executor.s"
 	@echo "... tests/test_fuzzer.o"
 	@echo "... tests/test_fuzzer.i"
 	@echo "... tests/test_fuzzer.s"

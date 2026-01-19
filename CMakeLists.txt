@@ -21,11 +21,13 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 set(FUZZER_SOURCES
     src/fuzzer.cpp
     src/protocol.cpp
+    src/timeout_executor.cpp
 )
 
 set(FUZZER_HEADERS
     include/fuzzer.h
     include/protocol.h
+    include/timeout_executor.h
 )
 
 add_library(fuzzer_lib STATIC ${FUZZER_SOURCES} ${FUZZER_HEADERS})

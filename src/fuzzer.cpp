@@ -1,4 +1,5 @@
 #include "fuzzer.h"
+#include "timeout_executor.h"
 #include <algorithm>
 #include <chrono>
 #include <fstream>
@@ -60,12 +61,14 @@ Fuzzer::Fuzzer(uint32_t seed)
     , mutation_rate_(0.5)
     , corpus_max_size_(1000)
     , verbose_(false)
+    , execution_timeout_ms_(1000)
 {
     if (seed == 0) {
         seed = generateSeed();
     }
     rng_.seed(seed);
     initializeMutationStrategies();
+    executor_.setTimeout(execution_timeout_ms_);
 }
 
 Fuzzer::~Fuzzer() = default;
@@ -389,27 +392,41 @@ size_t Fuzzer::run(size_t iterations) {
         std::cout << "Starting fuzzing run: " << iterations << " iterations" << std::endl;
         std::cout << "Initial corpus size: " << corpus_.size() << std::endl;
     }
-    
+
     auto start_time = std::chrono::high_resolution_clock::now();
     size_t completed = 0;
-    
+
     for (size_t i = 0; i < iterations; ++i) {
         FuzzInput input = generateInput();
         FuzzInput mutated = mutateInput(input);
-        
+
         auto exec_start = std::chrono::high_resolution_clock::now();
-        
+
         bool executed = false;
-        if (execute_callback_) {
-            executed = execute_callback_(mutated.data);
-        }
+        bool caused_timeout = false;
         
+        if (execute_callback_) {
+            ExecutionOutput output = executor_.executeWithFunction(
+                mutated.data,
+                [this](const std::vector<uint8_t>& data) -> int {
+                    return execute_callback_(data) ? 0 : 1;
+                }
+            );
+            
+            executed = (output.result == ExecutionResult::SUCCESS);
+            caused_timeout = (output.result == ExecutionResult::TIMEOUT);
+            
+            if (caused_timeout) {
+                mutated.caused_hang = true;
+            }
+        }
+
         auto exec_end = std::chrono::high_resolution_clock::now();
         double exec_time_ms = std::chrono::duration<double, std::milli>(exec_end - exec_start).count();
-        
-        if (executed) {
+
+        if (executed || caused_timeout) {
             updateStats(mutated, exec_time_ms);
-            
+
             if (mutated.caused_crash && crash_callback_) {
                 crash_callback_(mutated, "crash_" + std::to_string(stats_.crashes_found));
             }
@@ -419,35 +436,35 @@ size_t Fuzzer::run(size_t iterations) {
             if (mutated.is_interesting && interesting_callback_) {
                 interesting_callback_(mutated);
             }
-            
+
             if (shouldAddToCorpus(mutated) && corpus_.size() < corpus_max_size_) {
                 uint64_t hash = hashData(mutated.data);
                 seen_hashes_[hashToString(hash)] = true;
                 corpus_.push_back(mutated);
             }
         }
-        
+
         completed++;
-        
+
         if (verbose_ && completed % 10000 == 0) {
             auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
                 std::chrono::high_resolution_clock::now() - start_time).count();
             uint64_t eps = elapsed > 0 ? completed / elapsed : completed;
-            std::cout << "Progress: " << completed << "/" << iterations 
+            std::cout << "Progress: " << completed << "/" << iterations
                       << " | Corpus: " << corpus_.size()
                       << " | Crashes: " << stats_.crashes_found
                       << " | Exec/s: " << eps << std::endl;
         }
     }
-    
+
     auto end_time = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count();
     stats_.execs_per_second = elapsed > 0 ? completed / elapsed : completed;
-    
+
     if (verbose_) {
         std::cout << "Fuzzing complete. Total: " << completed << " iterations" << std::endl;
     }
-    
+
     return completed;
 }
 
@@ -508,6 +525,15 @@ void Fuzzer::setVerbose(bool verbose) {
 
 bool Fuzzer::isVerbose() const {
     return verbose_;
+}
+
+void Fuzzer::setExecutionTimeout(int timeout_ms) {
+    execution_timeout_ms_ = timeout_ms;
+    executor_.setTimeout(timeout_ms);
+}
+
+int Fuzzer::getExecutionTimeout() const {
+    return execution_timeout_ms_;
 }
 
 } // namespace fuzz
