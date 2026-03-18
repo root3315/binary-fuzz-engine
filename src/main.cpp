@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <limits>
 
 namespace {
 
@@ -73,53 +74,207 @@ struct Config {
     double mutation_rate = 0.5;
 };
 
-bool parseArgs(int argc, char* argv[], Config& config) {
+enum class ParseResult {
+    OK,
+    HELP_REQUESTED,
+    ERROR
+};
+
+struct ParseError {
+    std::string message;
+    std::string arg;
+};
+
+ParseResult parseArgs(int argc, char* argv[], Config& config, ParseError& error) {
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-        
+
         if (arg == "--help") {
-            return false;
+            return ParseResult::HELP_REQUESTED;
         } else if (arg == "-m" || arg == "--mode") {
-            if (i + 1 < argc) {
-                config.mode = argv[++i];
+            if (i + 1 >= argc) {
+                error.message = "missing value for mode option";
+                error.arg = arg;
+                return ParseResult::ERROR;
+            }
+            config.mode = argv[++i];
+            if (config.mode != "raw" && config.mode != "protocol" && config.mode != "network") {
+                error.message = "invalid mode (must be 'raw', 'protocol', or 'network')";
+                error.arg = config.mode;
+                return ParseResult::ERROR;
             }
         } else if (arg == "-i" || arg == "--iterations") {
-            if (i + 1 < argc) {
-                config.iterations = std::stoul(argv[++i]);
+            if (i + 1 >= argc) {
+                error.message = "missing value for iterations option";
+                error.arg = arg;
+                return ParseResult::ERROR;
+            }
+            try {
+                std::string val = argv[++i];
+                if (val.empty()) {
+                    error.message = "iterations value cannot be empty";
+                    error.arg = arg;
+                    return ParseResult::ERROR;
+                }
+                size_t pos = 0;
+                unsigned long parsed = std::stoul(val, &pos);
+                if (pos != val.size()) {
+                    error.message = "iterations must be a valid positive integer";
+                    error.arg = val;
+                    return ParseResult::ERROR;
+                }
+                config.iterations = parsed;
+            } catch (const std::out_of_range&) {
+                error.message = "iterations value out of range";
+                error.arg = argv[i];
+                return ParseResult::ERROR;
+            } catch (const std::invalid_argument&) {
+                error.message = "iterations must be a valid positive integer";
+                error.arg = argv[i];
+                return ParseResult::ERROR;
             }
         } else if (arg == "-s" || arg == "--seed") {
-            if (i + 1 < argc) {
-                config.seed = std::stoul(argv[++i]);
+            if (i + 1 >= argc) {
+                error.message = "missing value for seed option";
+                error.arg = arg;
+                return ParseResult::ERROR;
+            }
+            try {
+                std::string val = argv[++i];
+                if (val.empty()) {
+                    error.message = "seed value cannot be empty";
+                    error.arg = arg;
+                    return ParseResult::ERROR;
+                }
+                size_t pos = 0;
+                unsigned long parsed = std::stoul(val, &pos);
+                if (pos != val.size()) {
+                    error.message = "seed must be a valid non-negative integer";
+                    error.arg = val;
+                    return ParseResult::ERROR;
+                }
+                if (parsed > std::numeric_limits<uint32_t>::max()) {
+                    error.message = "seed value out of range (max 4294967295)";
+                    error.arg = val;
+                    return ParseResult::ERROR;
+                }
+                config.seed = static_cast<uint32_t>(parsed);
+            } catch (const std::out_of_range&) {
+                error.message = "seed value out of range";
+                error.arg = argv[i];
+                return ParseResult::ERROR;
+            } catch (const std::invalid_argument&) {
+                error.message = "seed must be a valid non-negative integer";
+                error.arg = argv[i];
+                return ParseResult::ERROR;
             }
         } else if (arg == "-d" || arg == "--directory") {
-            if (i + 1 < argc) {
-                config.corpus_dir = argv[++i];
+            if (i + 1 >= argc) {
+                error.message = "missing value for directory option";
+                error.arg = arg;
+                return ParseResult::ERROR;
             }
+            config.corpus_dir = argv[++i];
         } else if (arg == "-o" || arg == "--output") {
-            if (i + 1 < argc) {
-                config.output_dir = argv[++i];
+            if (i + 1 >= argc) {
+                error.message = "missing value for output option";
+                error.arg = arg;
+                return ParseResult::ERROR;
             }
+            config.output_dir = argv[++i];
         } else if (arg == "-f" || arg == "--file") {
-            if (i + 1 < argc) {
-                config.seed_file = argv[++i];
+            if (i + 1 >= argc) {
+                error.message = "missing value for file option";
+                error.arg = arg;
+                return ParseResult::ERROR;
             }
+            config.seed_file = argv[++i];
         } else if (arg == "-p" || arg == "--port") {
-            if (i + 1 < argc) {
-                config.target_port = std::stoi(argv[++i]);
+            if (i + 1 >= argc) {
+                error.message = "missing value for port option";
+                error.arg = arg;
+                return ParseResult::ERROR;
+            }
+            try {
+                std::string val = argv[++i];
+                if (val.empty()) {
+                    error.message = "port value cannot be empty";
+                    error.arg = arg;
+                    return ParseResult::ERROR;
+                }
+                size_t pos = 0;
+                long parsed = std::stol(val, &pos);
+                if (pos != val.size()) {
+                    error.message = "port must be a valid integer";
+                    error.arg = val;
+                    return ParseResult::ERROR;
+                }
+                if (parsed < 0 || parsed > 65535) {
+                    error.message = "port must be between 0 and 65535";
+                    error.arg = val;
+                    return ParseResult::ERROR;
+                }
+                config.target_port = static_cast<int>(parsed);
+            } catch (const std::out_of_range&) {
+                error.message = "port value out of range";
+                error.arg = argv[i];
+                return ParseResult::ERROR;
+            } catch (const std::invalid_argument&) {
+                error.message = "port must be a valid integer";
+                error.arg = argv[i];
+                return ParseResult::ERROR;
             }
         } else if (arg == "-h" || arg == "--host") {
-            if (i + 1 < argc) {
-                config.target_host = argv[++i];
+            if (i + 1 >= argc) {
+                error.message = "missing value for host option";
+                error.arg = arg;
+                return ParseResult::ERROR;
             }
+            config.target_host = argv[++i];
         } else if (arg == "-t" || arg == "--timeout") {
-            if (i + 1 < argc) {
-                config.timeout_ms = std::stoi(argv[++i]);
+            if (i + 1 >= argc) {
+                error.message = "missing value for timeout option";
+                error.arg = arg;
+                return ParseResult::ERROR;
+            }
+            try {
+                std::string val = argv[++i];
+                if (val.empty()) {
+                    error.message = "timeout value cannot be empty";
+                    error.arg = arg;
+                    return ParseResult::ERROR;
+                }
+                size_t pos = 0;
+                long parsed = std::stol(val, &pos);
+                if (pos != val.size()) {
+                    error.message = "timeout must be a valid integer";
+                    error.arg = val;
+                    return ParseResult::ERROR;
+                }
+                if (parsed <= 0) {
+                    error.message = "timeout must be a positive integer";
+                    error.arg = val;
+                    return ParseResult::ERROR;
+                }
+                config.timeout_ms = static_cast<int>(parsed);
+            } catch (const std::out_of_range&) {
+                error.message = "timeout value out of range";
+                error.arg = argv[i];
+                return ParseResult::ERROR;
+            } catch (const std::invalid_argument&) {
+                error.message = "timeout must be a valid integer";
+                error.arg = argv[i];
+                return ParseResult::ERROR;
             }
         } else if (arg == "-v" || arg == "--verbose") {
             config.verbose = true;
+        } else if (arg.rfind("-", 0) == 0) {
+            error.message = "unknown option";
+            error.arg = arg;
+            return ParseResult::ERROR;
         }
     }
-    return true;
+    return ParseResult::OK;
 }
 
 void setupProtocolSpec(fuzz::ProtocolSpec& spec) {
@@ -130,7 +285,7 @@ void setupProtocolSpec(fuzz::ProtocolSpec& spec) {
     spec.has_checksum = true;
     spec.checksum_offset = 2;
     spec.checksum_size = 2;
-    
+
     fuzz::FieldSpec magic;
     magic.name = "magic";
     magic.type = fuzz::FieldType::FIXED;
@@ -139,7 +294,7 @@ void setupProtocolSpec(fuzz::ProtocolSpec& spec) {
     magic.fixed_value = {0xBE, 0xEF};
     magic.required = true;
     spec.fields.push_back(magic);
-    
+
     fuzz::FieldSpec checksum;
     checksum.name = "checksum";
     checksum.type = fuzz::FieldType::CRC16;
@@ -147,7 +302,7 @@ void setupProtocolSpec(fuzz::ProtocolSpec& spec) {
     checksum.size = 2;
     checksum.required = true;
     spec.fields.push_back(checksum);
-    
+
     fuzz::FieldSpec length;
     length.name = "length";
     length.type = fuzz::FieldType::FIXED;
@@ -156,7 +311,7 @@ void setupProtocolSpec(fuzz::ProtocolSpec& spec) {
     length.byte_order = fuzz::ByteOrder::BYTE_ORDER_LITTLE;
     length.required = true;
     spec.fields.push_back(length);
-    
+
     fuzz::FieldSpec flags;
     flags.name = "flags";
     flags.type = fuzz::FieldType::FIXED;
@@ -164,7 +319,7 @@ void setupProtocolSpec(fuzz::ProtocolSpec& spec) {
     flags.size = 1;
     flags.required = true;
     spec.fields.push_back(flags);
-    
+
     fuzz::FieldSpec payload;
     payload.name = "payload";
     payload.type = fuzz::FieldType::VARIABLE;
@@ -178,13 +333,13 @@ void setupProtocolSpec(fuzz::ProtocolSpec& spec) {
 bool executeWithTimeout(const std::vector<uint8_t>& data, int timeout_ms) {
     (void)data;
     (void)timeout_ms;
-    
+
     g_total_executions++;
-    
+
     if (g_crash_detected) {
         return false;
     }
-    
+
     return true;
 }
 
@@ -192,40 +347,40 @@ bool sendToTarget(const std::vector<uint8_t>& data, const std::string& host, int
     if (port <= 0) {
         return false;
     }
-    
+
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
         return false;
     }
-    
+
     struct sockaddr_in server_addr;
     std::memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
-    
+
     if (inet_pton(AF_INET, host.c_str(), &server_addr.sin_addr) <= 0) {
         close(sock);
         return false;
     }
-    
+
     struct timeval tv;
     tv.tv_sec = 1;
     tv.tv_usec = 0;
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
-    
+
     bool success = false;
     if (connect(sock, (struct sockaddr*)&server_addr, sizeof(server_addr)) == 0) {
         ssize_t sent = send(sock, data.data(), data.size(), 0);
         success = (sent == static_cast<ssize_t>(data.size()));
     }
-    
+
     close(sock);
     g_total_executions++;
     return success;
 }
 
-void saveCrash(const std::string& output_dir, const fuzz::FuzzInput& input, 
+void saveCrash(const std::string& output_dir, const fuzz::FuzzInput& input,
                const std::string& crash_type) {
     DIR* dir = opendir(output_dir.c_str());
     if (!dir) {
@@ -233,11 +388,11 @@ void saveCrash(const std::string& output_dir, const fuzz::FuzzInput& input,
     } else {
         closedir(dir);
     }
-    
-    std::string filename = output_dir + "/" + crash_type + "_" + 
+
+    std::string filename = output_dir + "/" + crash_type + "_" +
                           std::to_string(time(nullptr)) + "_" +
                           std::to_string(g_total_executions);
-    
+
     std::ofstream file(filename, std::ios::binary);
     if (file.is_open()) {
         file.write(reinterpret_cast<const char*>(input.data.data()), input.data.size());
@@ -265,29 +420,29 @@ void runRawFuzzMode(const Config& config) {
     fuzzer.setExecuteCallback([&config](const std::vector<uint8_t>& data) -> bool {
         return executeWithTimeout(data, config.timeout_ms);
     });
-    
+
     fuzzer.setCrashCallback([&config](const fuzz::FuzzInput& input, const std::string& id) {
         g_crash_detected = true;
         saveCrash(config.output_dir, input, "crash_" + id);
         std::cout << "\n[CRASH] Found crash! Saved to " << config.output_dir << std::endl;
     });
-    
+
     fuzzer.setInterestingCallback([&config](const fuzz::FuzzInput& input) {
         saveCrash(config.output_dir, input, "interesting");
     });
-    
+
     std::cout << "Starting raw fuzz mode..." << std::endl;
     std::cout << "Iterations: " << config.iterations << std::endl;
     std::cout << "Seed: " << config.seed << std::endl;
     std::cout << "Max input size: " << config.max_input_size << std::endl;
     std::cout << std::endl;
-    
+
     size_t completed = fuzzer.run(config.iterations);
-    
+
     if (!config.output_dir.empty()) {
         fuzzer.saveCorpus(config.output_dir + "/corpus");
     }
-    
+
     const fuzz::FuzzerStats& stats = fuzzer.getStats();
     std::cout << std::endl;
     std::cout << "Fuzzing complete!" << std::endl;
@@ -304,23 +459,23 @@ void runRawFuzzMode(const Config& config) {
 void runProtocolFuzzMode(const Config& config) {
     fuzz::ProtocolSpec spec;
     setupProtocolSpec(spec);
-    
+
     fuzz::ProtocolFuzzer proto_fuzzer(spec);
     fuzz::Fuzzer fuzzer(config.seed);
-    
+
     fuzzer.setMaxInputSize(spec.max_packet_size);
     fuzzer.setMinInputSize(spec.min_packet_size);
     fuzzer.setVerbose(config.verbose);
-    
+
     if (!config.seed_file.empty()) {
         proto_fuzzer.addSeedPacketFromFile(config.seed_file);
         std::cout << "Loaded seed packets from: " << config.seed_file << std::endl;
     }
-    
+
     for (size_t i = 0; i < proto_fuzzer.getSeedPacketCount(); ++i) {
         std::cout << "Seed packet " << i << " loaded" << std::endl;
     }
-    
+
     fuzzer.setExecuteCallback([&config](const std::vector<uint8_t>& data) -> bool {
         return executeWithTimeout(data, config.timeout_ms);
     });
@@ -352,7 +507,7 @@ void runProtocolFuzzMode(const Config& config) {
             std::cout << "Progress: " << completed << "/" << config.iterations << std::endl;
         }
     }
-    
+
     std::cout << std::endl;
     std::cout << "Protocol fuzzing complete!" << std::endl;
     std::cout << "  Total iterations: " << completed << std::endl;
@@ -364,34 +519,34 @@ void runNetworkFuzzMode(const Config& config) {
         std::cerr << "Error: Network mode requires a target port (-p)" << std::endl;
         return;
     }
-    
+
     fuzz::Fuzzer fuzzer(config.seed);
-    
+
     fuzzer.setMaxInputSize(4096);
     fuzzer.setMinInputSize(1);
     fuzzer.setVerbose(config.verbose);
-    
+
     if (!config.seed_file.empty()) {
         fuzzer.addSeedInputFromFile(config.seed_file);
     }
-    
+
     fuzzer.setExecuteCallback([&config](const std::vector<uint8_t>& data) -> bool {
         return sendToTarget(data, config.target_host, config.target_port);
     });
-    
+
     fuzzer.setCrashCallback([&config](const fuzz::FuzzInput& input, const std::string& id) {
         g_crash_detected = true;
         saveCrash(config.output_dir, input, "net_crash_" + id);
         std::cout << "\n[CRASH] Network crash found!" << std::endl;
     });
-    
+
     std::cout << "Starting network fuzz mode..." << std::endl;
     std::cout << "Target: " << config.target_host << ":" << config.target_port << std::endl;
     std::cout << "Iterations: " << config.iterations << std::endl;
     std::cout << std::endl;
-    
+
     size_t completed = fuzzer.run(config.iterations);
-    
+
     const fuzz::FuzzerStats& stats = fuzzer.getStats();
     std::cout << std::endl;
     std::cout << "Network fuzzing complete!" << std::endl;
@@ -404,16 +559,29 @@ void runNetworkFuzzMode(const Config& config) {
 
 int main(int argc, char* argv[]) {
     printBanner();
-    
+
     Config config;
-    if (!parseArgs(argc, argv, config)) {
+    ParseError error;
+    ParseResult result = parseArgs(argc, argv, config, error);
+
+    if (result == ParseResult::HELP_REQUESTED) {
         printUsage(argv[0]);
         return 0;
     }
-    
+
+    if (result == ParseResult::ERROR) {
+        std::cerr << "Error: " << error.message;
+        if (!error.arg.empty()) {
+            std::cerr << ": '" << error.arg << "'";
+        }
+        std::cerr << std::endl;
+        printUsage(argv[0]);
+        return 1;
+    }
+
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
-    
+
     if (config.verbose) {
         std::cout << "Configuration:" << std::endl;
         std::cout << "  Mode: " << config.mode << std::endl;
@@ -423,7 +591,7 @@ int main(int argc, char* argv[]) {
         std::cout << "  Verbose: " << (config.verbose ? "yes" : "no") << std::endl;
         std::cout << std::endl;
     }
-    
+
     if (config.mode == "raw") {
         runRawFuzzMode(config);
     } else if (config.mode == "protocol") {
@@ -435,6 +603,6 @@ int main(int argc, char* argv[]) {
         printUsage(argv[0]);
         return 1;
     }
-    
+
     return 0;
 }
